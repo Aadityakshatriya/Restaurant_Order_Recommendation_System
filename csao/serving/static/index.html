@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Zomathon Recommender Console</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Manrope:wght@400;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/ui-static/styles.css" />
+  </head>
+  <body>
+    <div class="bg-glow bg-glow-one"></div>
+    <div class="bg-glow bg-glow-two"></div>
+
+    <header class="hero">
+      <div class="brand-row">
+        <h1>Zomathon</h1>
+        <a class="pill-link" href="/docs" target="_blank" rel="noreferrer">API</a>
+      </div>
+      <p>Real-time cart recommendations using the trained CSAO ranking model.</p>
+    </header>
+
+    <main class="app-shell">
+      <section class="panel">
+        <div class="panel-title">
+          <span class="step-tag">1</span>
+          <h2>Choose User ID</h2>
+        </div>
+        <p class="muted">Existing users only.</p>
+        <select id="userSelect" class="control"></select>
+        <p class="small-note" id="userCount">Loading users...</p>
+      </section>
+
+      <section class="panel">
+        <div class="panel-title">
+          <span class="step-tag">2</span>
+          <h2>Choose Restaurant</h2>
+        </div>
+        <p class="muted">All restaurants from the training universe.</p>
+        <select id="restaurantSelect" class="control" disabled></select>
+        <div id="restaurantMeta" class="meta"></div>
+      </section>
+
+      <section class="panel panel-wide">
+        <div class="panel-title">
+          <span class="step-tag">3</span>
+          <h2>Menu, Combos, and Live Top-2 Recs</h2>
+        </div>
+        <p class="muted">Tap any item to add to cart; recommendations refresh immediately.</p>
+
+        <div class="workspace">
+          <div class="menu-zone">
+            <div class="zone-header">
+              <h3>Items</h3>
+              <span id="menuCount" class="chip">0</span>
+            </div>
+            <div id="menuGrid" class="menu-grid"></div>
+
+            <div class="zone-header combo-head">
+              <h3>Combos</h3>
+              <span id="comboCount" class="chip">0</span>
+            </div>
+            <div id="comboGrid" class="combo-grid"></div>
+          </div>
+
+          <aside class="side-zone">
+            <div class="cart-card">
+              <div class="zone-header">
+                <h3>Cart</h3>
+                <button id="clearCartBtn" class="ghost-btn">Clear</button>
+              </div>
+              <ul id="cartList" class="cart-list"></ul>
+            </div>
+
+            <div class="rec-card">
+              <div class="zone-header">
+                <h3>Top 2 Recommendations</h3>
+                <span id="latencyBadge" class="latency">-- ms</span>
+              </div>
+              <p id="recState" class="small-note">Add an item to start recommendations.</p>
+              <div id="recList" class="rec-list"></div>
+            </div>
+          </aside>
+        </div>
+      </section>
+    </main>
+
+    <script src="/ui-static/app.js"></script>
+  </body>
+</html>

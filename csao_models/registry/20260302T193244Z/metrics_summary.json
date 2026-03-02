@@ -1,0 +1,171 @@
+{
+  "run_id": "20260302T193244Z",
+  "baseline": {
+    "metrics": {
+      "ndcg@5": 0.2577766818458192,
+      "precision@5": 0.07509462891092905,
+      "recall@5": 0.3754731445546452,
+      "auc": 0.577573927165003,
+      "coverage@5": 0.3386799894819879
+    },
+    "metrics_by_step": {
+      "0": {
+        "ndcg@5": 0.2784846972879173,
+        "precision@5": 0.08182472557135145,
+        "recall@5": 0.40912362785675727,
+        "auc": 0.6018319584353121,
+        "coverage@5": 0.29266368656323954
+      },
+      "1": {
+        "ndcg@5": 0.23331917989688705,
+        "precision@5": 0.0672651728743137,
+        "recall@5": 0.3363258643715685,
+        "auc": 0.5552380336894509,
+        "coverage@5": 0.3210623192216671
+      },
+      "2": {
+        "ndcg@5": 0.2358990249232572,
+        "precision@5": 0.0680124869927159,
+        "recall@5": 0.34006243496357963,
+        "auc": 0.5403072950184513,
+        "coverage@5": 0.32342887194320274
+      },
+      "3": {
+        "ndcg@5": 0.2370314223280785,
+        "precision@5": 0.0669374492282697,
+        "recall@5": 0.3346872461413485,
+        "auc": 0.5349354192333855,
+        "coverage@5": 0.2981578947368421
+      }
+    },
+    "expected_aov_lift": 1.1791252120166764
+  },
+  "main": {
+    "metrics": {
+      "ndcg@5": 0.4565956438291331,
+      "precision@5": 0.11596473575775,
+      "recall@5": 0.57982367878875,
+      "auc": 0.6460801981798502,
+      "coverage@5": 0.9263739153300027
+    },
+    "metrics_by_step": {
+      "0": {
+        "ndcg@5": 0.48730110527793596,
+        "precision@5": 0.13383120388698938,
+        "recall@5": 0.669156019434947,
+        "auc": 0.6611438594424465,
+        "coverage@5": 0.5566657901656586
+      },
+      "1": {
+        "ndcg@5": 0.4217773880599967,
+        "precision@5": 0.09537023297225107,
+        "recall@5": 0.4768511648612554,
+        "auc": 0.6223253802090952,
+        "coverage@5": 0.8388114646331843
+      },
+      "2": {
+        "ndcg@5": 0.41255842030760753,
+        "precision@5": 0.09473465140478668,
+        "recall@5": 0.4736732570239334,
+        "auc": 0.6036727803820572,
+        "coverage@5": 0.8009466210886143
+      },
+      "3": {
+        "ndcg@5": 0.4552620233525791,
+        "precision@5": 0.1017059301380991,
+        "recall@5": 0.5085296506904955,
+        "auc": 0.5965735438464279,
+        "coverage@5": 0.5752631578947368
+      }
+    },
+    "expected_aov_lift": 1.772871156149691,
+    "model_path": "/Users/aaditya/zomathon/Project_clean/csao_models/lgbm_ranker_main.joblib",
+    "best_params": {
+      "objective": "lambdarank",
+      "boosting_type": "gbdt",
+      "metric": "ndcg",
+      "ndcg_eval_at": [
+        5,
+        10
+      ],
+      "num_leaves": 31,
+      "learning_rate": 0.03,
+      "n_estimators": 5000,
+      "max_depth": -1,
+      "min_child_samples": 20,
+      "subsample": 0.8,
+      "subsample_freq": 1,
+      "colsample_bytree": 0.8,
+      "reg_lambda": 1.0,
+      "random_state": 42,
+      "n_jobs": -1
+    },
+    "score_strategy": "raw"
+  },
+  "business": {
+    "metrics": {
+      "ndcg@5": 0.3664014612189585,
+      "precision@5": 0.09624359158641177,
+      "recall@5": 0.48121795793205885,
+      "auc": 0.556383616019154,
+      "coverage@5": 0.735734946095188
+    },
+    "metrics_by_step": {
+      "0": {
+        "ndcg@5": 0.45375667466835884,
+        "precision@5": 0.11534101133705235,
+        "recall@5": 0.5767050566852618,
+        "auc": 0.5978113156287643,
+        "coverage@5": 0.43702340257691297
+      },
+      "1": {
+        "ndcg@5": 0.2670079187972144,
+        "precision@5": 0.07512984122273335,
+        "recall@5": 0.3756492061136667,
+        "auc": 0.490165289143188,
+        "coverage@5": 0.5887457270575861
+      },
+      "2": {
+        "ndcg@5": 0.2714221164361247,
+        "precision@5": 0.07438085327783558,
+        "recall@5": 0.37190426638917795,
+        "auc": 0.5314908545257152,
+        "coverage@5": 0.552721535629766
+      },
+      "3": {
+        "ndcg@5": 0.24801822148582434,
+        "precision@5": 0.06791226645004061,
+        "recall@5": 0.3395613322502031,
+        "auc": 0.531476729527814,
+        "coverage@5": 0.4181578947368421
+      }
+    },
+    "expected_aov_lift": 1.6066358943031056,
+    "model_path": "/Users/aaditya/zomathon/Project_clean/csao_models/lgbm_ranker_business.joblib",
+    "best_params": {
+      "objective": "lambdarank",
+      "boosting_type": "gbdt",
+      "metric": "ndcg",
+      "ndcg_eval_at": [
+        5,
+        10
+      ],
+      "num_leaves": 31,
+      "learning_rate": 0.03,
+      "n_estimators": 5000,
+      "max_depth": -1,
+      "min_child_samples": 20,
+      "subsample": 0.8,
+      "subsample_freq": 1,
+      "colsample_bytree": 0.8,
+      "reg_lambda": 1.0,
+      "random_state": 42,
+      "n_jobs": -1
+    },
+    "score_strategy": "raw"
+  },
+  "uplift_vs_baseline_pct": {
+    "main": 50.35478319707214,
+    "business": 36.25659751225665
+  }
+}

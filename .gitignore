@@ -1,3 +1,17 @@
-changes_readme.md
-codex prompt.md
-CODEX_PROMPT.md
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual envs
+.venv/
+venv/
+
+# OS/editor noise
+.DS_Store
+.idea/
+.vscode/
+
+# Runtime logs
+csao_logs/

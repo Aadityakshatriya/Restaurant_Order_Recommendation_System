@@ -1,0 +1,7 @@
+{
+  "latest_run_id": "20260302T211842Z",
+  "latest_metrics_path": "/Users/aaditya/zomathon/Project_clean/csao_models/metrics_summary.json",
+  "latest_main_model_path": "/Users/aaditya/zomathon/Project_clean/csao_models/lgbm_ranker_main.joblib",
+  "registry_dir": "/Users/aaditya/zomathon/Project_clean/csao_models/registry",
+  "latest_business_model_path": "/Users/aaditya/zomathon/Project_clean/csao_models/lgbm_ranker_business.joblib"
+}

@@ -1,0 +1,163 @@
+seed: 42
+
+paths:
+  # Keep this as source-of-truth parquet when available.
+  cart_sessions_path: "csao_data/cart_sessions.parquet"
+  # Existing pre-split files are supported as fallback.
+  processed_dir: "csao_data"
+  model_dir: "csao_models"
+  registry_dir: "csao_models/registry"
+  logs_dir: "csao_logs"
+
+data:
+  split_column: "split"
+  expected_splits: ["train", "val", "test"]
+  group_key: ["session_id", "step"]
+  session_key: "session_id"
+  candidate_id_col: "candidate_item_id"
+  step_col: "step"
+  target: "added"
+  business_target: "revenue_weighted_label"
+  aov_lift_col: "aov_lift_if_added"
+  popularity_col: "candidate_popularity"
+  candidate_category_col: "candidate_category"
+  has_dessert_col: "has_dessert"
+
+  # All model input features are config-driven.
+  feature_columns:
+    - step
+    - hour
+    - city
+    - meal_slot
+    - cart_total
+    - cart_size
+    - cart_momentum
+    - has_main
+    - has_side
+    - has_drink
+    - has_dessert
+    - has_snack
+    - candidate_category
+    - candidate_cuisine_tag
+    - candidate_price
+    - candidate_is_veg
+    - candidate_calories
+    - candidate_popularity
+    - candidate_margin_score
+    - candidate_revenue_potential
+    - candidate_in_price_sweet_spot
+    - candidate_slot_urgency
+    - price_delta_cart_avg
+    - pair_max_lift
+    - pair_seen_before_flag
+    - weather_temp_c
+    - is_hot_weather
+    - weather_drink_affinity
+    - user_segment
+    - user_avg_order_value
+    - user_is_veg
+    - user_orders_per_month
+    - user_ordered_before
+    - user_cuisine_affinity
+    - user_addon_rate_30d
+    - user_drink_rate_30d
+    - user_dessert_rate_30d
+    - user_addon_rate_this_slot
+    - user_price_upgrade_tendency
+    - user_days_since_last_order
+    - user_orders_30d
+    - user_orders_7d
+    - user_median_item_price_90d
+    - is_cold_start
+    - rest_cuisine
+    - rest_price_tier
+    - rest_rating
+    - rest_avg_margin
+    - aov_lift_if_added
+
+  categorical_features:
+    - city
+    - meal_slot
+    - user_segment
+    - rest_cuisine
+    - rest_price_tier
+    - candidate_category
+    - candidate_cuisine_tag
+
+  required_columns:
+    - session_id
+    - step
+    - candidate_item_id
+    - split
+    - added
+    - revenue_weighted_label
+    - aov_lift_if_added
+    - candidate_popularity
+
+  missing:
+    categorical_fill_value: "__MISSING__"
+    numeric_fill_strategy: "median"
+
+model:
+  lgbm_params:
+    objective: "lambdarank"
+    boosting_type: "gbdt"
+    metric: "ndcg"
+    ndcg_eval_at: [5, 10]
+    num_leaves: 63
+    learning_rate: 0.03
+    n_estimators: 1200
+    max_depth: -1
+    min_child_samples: 20
+    subsample: 0.8
+    subsample_freq: 1
+    colsample_bytree: 0.85
+    reg_lambda: 1.0
+    random_state: 42
+    n_jobs: -1
+
+training:
+  enable_early_stopping: true
+  early_stopping_rounds: 120
+  min_training_rounds: 1
+  main_target_name: "added"
+  business_target_name: "revenue_weighted_label"
+  train_business_model: false
+  business_label_bins: 4
+  save_feature_importance: true
+
+tuning:
+  enabled: true
+  exhaustive: true
+  max_trials: 54
+  train_group_sample_frac: 0.7
+  val_group_sample_frac: 1.0
+  optimize_for: "ndcg@5"
+  objective_weights:
+    ndcg@5: 1.0
+    recall@5: 0.10
+    coverage@5: 0.05
+    cart_state_diversity@1: 0.08
+  search_space:
+    learning_rate: [0.01, 0.02, 0.03]
+    num_leaves: [31, 63, 127]
+    min_child_samples: [10, 20, 40]
+    colsample_bytree: [0.7, 0.85]
+
+evaluation:
+  top_k: 5
+  compute_step_metrics: true
+
+rerank:
+  enabled: false
+  apply_only_if_better: true
+  blend_weight_model: 0.7
+  blend_weight_margin: 0.3
+  dessert_guard_enabled: true
+
+serving:
+  enable_api: true
+  host: "0.0.0.0"
+  port: 8000
+  default_top_k: 5
+
