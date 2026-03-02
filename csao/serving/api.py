@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import threading
+import time
+from collections import OrderedDict
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 import pandas as pd
 from fastapi import FastAPI, HTTPException
@@ -71,9 +73,90 @@ RecommendLiteRequest = RecommendMainRequest
 RecommendLiteResponse = RecommendMainResponse
 
 
+class _TimedResponseCache:
+    """Tiny in-process TTL cache for repeated recommendation contexts."""
+
+    def __init__(self, max_entries: int, ttl_sec: float):
+        self.max_entries = max(1, int(max_entries))
+        self.ttl_sec = max(0.0, float(ttl_sec))
+        self._store: "OrderedDict[Tuple[Any, ...], Tuple[float, Dict[str, Any]]]" = OrderedDict()
+        self._lock = threading.Lock()
+
+    def get(self, key: Tuple[Any, ...]) -> Optional[Dict[str, Any]]:
+        now = time.time()
+        with self._lock:
+            hit = self._store.get(key)
+            if hit is None:
+                return None
+            ts, payload = hit
+            if now - ts > self.ttl_sec:
+                self._store.pop(key, None)
+                return None
+            self._store.move_to_end(key)
+            return dict(payload)
+
+    def set(self, key: Tuple[Any, ...], payload: Dict[str, Any]) -> None:
+        with self._lock:
+            self._store[key] = (time.time(), dict(payload))
+            self._store.move_to_end(key)
+            while len(self._store) > self.max_entries:
+                self._store.popitem(last=False)
+
+    def size(self) -> int:
+        with self._lock:
+            return len(self._store)
+
+
+def _model_dump(model: BaseModel) -> Dict[str, Any]:
+    dump_fn = getattr(model, "model_dump", None)
+    if callable(dump_fn):
+        return dump_fn()
+    return model.dict()
+
+
+def _normalize_opt_str(value: Optional[str]) -> str:
+    return "" if value is None else str(value)
+
+
+def _context_cache_key(req: RecommendMainRequest) -> Tuple[Any, ...]:
+    cart_ids = tuple(sorted(str(v) for v in req.cart_item_ids))
+    explicit_candidates = tuple(str(v) for v in (req.candidate_item_ids or []))
+    temp = None if req.weather_temp_c is None else round(float(req.weather_temp_c), 2)
+    return (
+        str(req.user_id),
+        str(req.restaurant_id),
+        cart_ids,
+        int(req.top_k),
+        _normalize_opt_str(req.city),
+        int(req.hour) if req.hour is not None else -1,
+        _normalize_opt_str(req.meal_slot),
+        temp,
+        int(req.step) if req.step is not None else -1,
+        explicit_candidates,
+        int(req.max_candidates),
+    )
+
+
 def create_app(config_path: Path, model_path: Path, use_business_model: bool = False) -> FastAPI:
     """Build and configure FastAPI app exposing model inference endpoints."""
     logger = get_logger("csao.api")
+
+    serving_cfg = {}
+    try:
+        import yaml
+
+        with config_path.open("r", encoding="utf-8") as f:
+            cfg = yaml.safe_load(f) or {}
+        serving_cfg = cfg.get("serving", {}) or {}
+    except Exception:
+        serving_cfg = {}
+
+    response_cache: Optional[_TimedResponseCache] = None
+    if bool(serving_cfg.get("response_cache_enabled", True)):
+        response_cache = _TimedResponseCache(
+            max_entries=int(serving_cfg.get("response_cache_max_entries", 2048)),
+            ttl_sec=float(serving_cfg.get("response_cache_ttl_sec", 45.0)),
+        )
 
     class _LazyServices:
         def __init__(self) -> None:
@@ -131,7 +214,22 @@ def create_app(config_path: Path, model_path: Path, use_business_model: bool = F
             "status": "ok",
             "services_loaded": services.loaded,
             "lite_feature_store_ready": lite_ready,
+            "response_cache_enabled": response_cache is not None,
+            "response_cache_size": response_cache.size() if response_cache is not None else 0,
         }
+
+    @app.on_event("startup")
+    def startup_warmup() -> None:
+        # Warm heavy services in background so first user action isn't a full cold load.
+        if bool(serving_cfg.get("background_warmup_enabled", True)):
+            def _warm() -> None:
+                try:
+                    services.get()
+                    logger.info("Background warmup complete")
+                except Exception as e:  # pragma: no cover - warmup resilience
+                    logger.warning("Background warmup failed: %s", e)
+
+            threading.Thread(target=_warm, daemon=True).start()
 
     @app.get("/", include_in_schema=False)
     def root() -> FileResponse:
@@ -192,8 +290,28 @@ def create_app(config_path: Path, model_path: Path, use_business_model: bool = F
         return RecommendResponse(recommended_item_ids=item_ids)
 
     def _recommend_with_context(req: RecommendMainRequest) -> RecommendMainResponse:
-        pipeline, lite, _ = services.get()
+        cache_key = _context_cache_key(req)
+        if response_cache is not None:
+            cached = response_cache.get(cache_key)
+            if cached is not None:
+                return RecommendMainResponse(**cached)
+
+        pipeline, lite, ui_backend = services.get()
         try:
+            cart_set = {str(v) for v in req.cart_item_ids}
+            if req.candidate_item_ids:
+                explicit_candidates = [str(v) for v in req.candidate_item_ids]
+            else:
+                # Keep accuracy parity with the original UI path by using the full
+                # restaurant menu candidate set rather than a truncated default pool.
+                menu_items = ui_backend.catalog.menu_by_restaurant.get(str(req.restaurant_id), [])
+                explicit_candidates = [str(item["candidate_item_id"]) for item in menu_items]
+
+            if cart_set:
+                explicit_candidates = [cid for cid in explicit_candidates if cid not in cart_set]
+            if not explicit_candidates:
+                raise ValueError("No candidates left after excluding current cart items.")
+
             frame, meta = lite.build_candidate_frame(
                 user_id=req.user_id,
                 restaurant_id=req.restaurant_id,
@@ -203,8 +321,8 @@ def create_app(config_path: Path, model_path: Path, use_business_model: bool = F
                 meal_slot=req.meal_slot,
                 weather_temp_c=req.weather_temp_c,
                 step=req.step,
-                candidate_item_ids=req.candidate_item_ids,
-                max_candidates=req.max_candidates,
+                candidate_item_ids=explicit_candidates,
+                max_candidates=max(len(explicit_candidates), 1),
                 request_id=req.request_id,
             )
             item_ids = pipeline.recommend(frame, top_k=req.top_k)
@@ -215,11 +333,14 @@ def create_app(config_path: Path, model_path: Path, use_business_model: bool = F
             logger.exception("Failed to serve context recommend")
             raise HTTPException(status_code=500, detail=f"Internal error: {e}") from e
 
-        return RecommendMainResponse(
+        response = RecommendMainResponse(
             recommended_item_ids=item_ids,
             candidate_count=int(meta["candidate_count"]),
             cold_start_user=bool(meta["cold_start_user"]),
         )
+        if response_cache is not None:
+            response_cache.set(cache_key, _model_dump(response))
+        return response
 
     @app.post("/recommend-main", response_model=RecommendMainResponse)
     def recommend_main(req: RecommendMainRequest) -> RecommendMainResponse:

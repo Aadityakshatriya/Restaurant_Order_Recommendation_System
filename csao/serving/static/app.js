@@ -8,7 +8,13 @@ const state = {
   cart: [],
   itemById: new Map(),
   runToken: 0,
+  recTimer: null,
+  recAbortController: null,
+  recCache: new Map(),
 };
+
+const REC_DEBOUNCE_MS = 45;
+const REC_CACHE_TTL_MS = 45000;
 
 const els = {
   userSelect: document.getElementById("userSelect"),
@@ -39,9 +45,56 @@ function setRecState(msg) {
   els.recState.textContent = msg;
 }
 
+function cancelInFlightRecommendation() {
+  if (state.recAbortController) {
+    state.recAbortController.abort();
+    state.recAbortController = null;
+  }
+}
+
+function recommendationSignature() {
+  const cartSignature = [...state.cart].sort().join(",");
+  return `${state.selectedUser}|${state.selectedRestaurant}|${cartSignature}`;
+}
+
+function getCachedRecommendation(signature) {
+  const hit = state.recCache.get(signature);
+  if (!hit) return null;
+  if (Date.now() - hit.ts > REC_CACHE_TTL_MS) {
+    state.recCache.delete(signature);
+    return null;
+  }
+  return Array.isArray(hit.ids) ? [...hit.ids] : null;
+}
+
+function setCachedRecommendation(signature, ids) {
+  state.recCache.set(signature, { ids: [...ids], ts: Date.now() });
+  if (state.recCache.size > 256) {
+    const firstKey = state.recCache.keys().next().value;
+    if (firstKey !== undefined) {
+      state.recCache.delete(firstKey);
+    }
+  }
+}
+
+function scheduleRecommendations() {
+  if (state.recTimer) {
+    clearTimeout(state.recTimer);
+  }
+  state.recTimer = setTimeout(() => {
+    state.recTimer = null;
+    runRecommendations();
+  }, REC_DEBOUNCE_MS);
+}
+
 function resetRecommendationState(message, invalidateInFlight = false) {
   if (invalidateInFlight) {
     state.runToken += 1;
+    if (state.recTimer) {
+      clearTimeout(state.recTimer);
+      state.recTimer = null;
+    }
+    cancelInFlightRecommendation();
   }
   els.recList.innerHTML = "";
   setRecState(message);
@@ -227,6 +280,7 @@ async function loadRestaurantMenu(restaurantId) {
   state.combos = payload.combos || [];
   state.itemById = new Map(state.menuItems.map((x) => [x.candidate_item_id, x]));
   state.cart = [];
+  state.recCache.clear();
   renderRestaurantMeta(restaurantId);
   renderMenu();
   renderCombos();
@@ -246,7 +300,7 @@ function addItemToCart(itemId, runModel = true) {
     renderCart();
   }
   if (runModel) {
-    runRecommendations();
+    scheduleRecommendations();
   }
 }
 
@@ -260,7 +314,7 @@ function addComboToCart(itemIds) {
   }
   if (changed) {
     renderCart();
-    runRecommendations();
+    scheduleRecommendations();
   }
 }
 
@@ -274,6 +328,17 @@ async function runRecommendations() {
   }
 
   const token = ++state.runToken;
+  const signature = recommendationSignature();
+  const cachedIds = getCachedRecommendation(signature);
+  if (cachedIds) {
+    setLatency(1);
+    renderRecommendations(cachedIds);
+    return;
+  }
+
+  cancelInFlightRecommendation();
+  const controller = new AbortController();
+  state.recAbortController = controller;
   setRecState("Running inference...");
   const started = performance.now();
 
@@ -281,6 +346,7 @@ async function runRecommendations() {
     const recommendResp = await fetchJson("/recommend-main", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
+      signal: controller.signal,
       body: JSON.stringify({
         user_id: state.selectedUser,
         restaurant_id: state.selectedRestaurant,
@@ -293,12 +359,19 @@ async function runRecommendations() {
 
     const latency = performance.now() - started;
     setLatency(latency);
-    renderRecommendations(recommendResp.recommended_item_ids || []);
+    const ids = recommendResp.recommended_item_ids || [];
+    setCachedRecommendation(signature, ids);
+    renderRecommendations(ids);
   } catch (err) {
+    if (err && err.name === "AbortError") return;
     if (token !== state.runToken) return;
     setRecState(err.message || "Inference request failed.");
     els.recList.innerHTML = "";
     setLatency(999);
+  } finally {
+    if (state.recAbortController === controller) {
+      state.recAbortController = null;
+    }
   }
 }
 
@@ -307,7 +380,7 @@ function removeFromCart(itemId) {
   if (next.length === state.cart.length) return;
   state.cart = next;
   renderCart();
-  runRecommendations();
+  scheduleRecommendations();
 }
 
 function bindEvents() {
@@ -320,6 +393,7 @@ function bindEvents() {
       state.menuItems = [];
       state.combos = [];
       state.cart = [];
+      state.recCache.clear();
       state.itemById = new Map();
       renderRestaurantMeta("");
       renderMenu();
@@ -363,6 +437,7 @@ function bindEvents() {
 
   els.clearCartBtn.addEventListener("click", () => {
     state.cart = [];
+    state.recCache.clear();
     renderCart();
     resetRecommendationState("Add an item to start recommendations.", true);
   });

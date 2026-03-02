@@ -160,4 +160,8 @@ serving:
   host: "0.0.0.0"
   port: 8000
   default_top_k: 5
+  background_warmup_enabled: true
+  response_cache_enabled: true
+  response_cache_ttl_sec: 45
+  response_cache_max_entries: 2048
 
