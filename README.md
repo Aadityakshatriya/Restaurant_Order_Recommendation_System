@@ -19,6 +19,8 @@ Go to the hosted Hugging Face Space:
 
 - https://huggingface.co/spaces/aadityakshatriya/zomathon
 
+> **Important latency note:** On the Hugging Face Space, current latency is around **300-400 ms**, and we are actively working to reduce it. When run locally, latency is typically around **20-30 ms**.
+
 ### If the Space is not accessible, run locally
 
 ```bash
