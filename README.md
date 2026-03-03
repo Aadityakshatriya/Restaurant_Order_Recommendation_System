@@ -1,16 +1,41 @@
+---
+title: CSAO Cart Recommender UI
+emoji: 🍽️
+colorFrom: red
+colorTo: yellow
+sdk: docker
+app_port: 7860
+pinned: false
+---
+
 # Restaurant Order Recommendation System (CSAO)
 
-This repository is the full hackathon submission package for a contextual cart add-on recommendation system inspired by Zomato-like ordering flows.
+## Part 1) Intro + How To Run
 
-It contains:
-- End-to-end training/evaluation code for the main ranking model.
-- A production-style FastAPI backend.
-- A realistic UI with live top-2 recommendations.
-- Included train/val/test splits and trained model artifact for reproducibility.
-- Deployment assets for Hugging Face Spaces (Docker).
-- The original data-generation notebook (kept unchanged): `zomato_csao_datagen_2.ipynb`.
+This repository contains the full hackathon submission for a contextual cart add-on recommendation system inspired by Zomato-like ordering flows.
+
+### Use the app directly (recommended)
+Go to the hosted Hugging Face Space:
+
+- https://huggingface.co/spaces/aadityakshatriya/zomathon
+
+### If the Space is not accessible, run locally
+
+```bash
+git clone https://github.com/Aadityakshatriya/Restaurant_Order_Recommendation_System.git
+cd Restaurant_Order_Recommendation_System
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+python -m csao.serve_pretrained
+```
+
+Open:
+- `http://localhost:7860/ui`
 
 ---
+
+## Part 2) Project Overview (Full Submission)
 
 ## 1) Problem Statement and Goal
 
@@ -55,9 +80,8 @@ predict the best next add-on items to recommend in real time, prioritizing:
 ### Repro and ops scripts
 - `analyze_cart_sessions.py`: exploratory analysis helper.
 - `csao/tools/recommend_latency_check.py`: endpoint latency test.
-- `deploy_hf_space.sh`: one-command HF Space deployment helper.
 - `REPRODUCE.md`: reproducibility quick guide.
-- `Dockerfile`, `.dockerignore`, `.gitattributes`: deployment/versioning support.
+- `Dockerfile`, `.dockerignore`, `.gitattributes`: runtime/versioning support.
 
 ---
 
@@ -303,30 +327,7 @@ python -m csao.tools.recommend_latency_check --url http://localhost:7860/recomme
 
 ---
 
-## 11) Hugging Face Space Deployment
-
-Deployment files are included:
-- `Dockerfile`
-- `.dockerignore`
-- `.gitattributes`
-- `deploy_hf_space.sh`
-
-Prerequisites:
-- `hf auth login` with write token
-- `git-lfs` installed
-
-Deploy:
-
-```bash
-./deploy_hf_space.sh <owner/space-name> [public|private]
-```
-
-Current Space used during testing:
-- `aadityakshatriya/zomathon`
-
----
-
-## 12) Script and Module Index (Presentation Inventory)
+## 11) Script and Module Index (Presentation Inventory)
 
 ### Data and analysis
 - `zomato_csao_datagen_2.ipynb`: dataset generation notebook (unchanged).
@@ -350,12 +351,11 @@ Current Space used during testing:
 ### Artifacts and operations
 - `csao_data/*`: train/val/test parquet splits.
 - `csao_models/*`: model artifacts + metrics + registry.
-- `deploy_hf_space.sh`: automated HF deployment.
 - `REPRODUCE.md`: concise reproduction guide.
 
 ---
 
-## 13) Key Design Ideas Captured in This Repo
+## 12) Key Design Ideas Captured in This Repo
 
 - Keep online input minimal (`user_id`, `restaurant_id`, `cart_item_ids`) while inferring full model feature space server-side.
 - Prioritize cart-state relevance with pair-affinity features and cart-derived interaction features.
@@ -366,7 +366,7 @@ Current Space used during testing:
 
 ---
 
-## 14) Submission Notes
+## 13) Submission Notes
 
 - This repo is intended as a complete, evaluator-ready codebase for the hackathon submission.
 - The data-generation notebook was intentionally preserved unchanged.
